@@ -1,40 +1,83 @@
+import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../store';
 import { logout, loginWithAccessToken, setClientId } from '../store/authSlice';
-import { uploadBackupToDrive } from '../store/ledgerSlice';
+import { syncGoogleDriveData } from '../store/ledgerSlice';
 
 export const useAuth = () => {
   const dispatch = useAppDispatch();
   const auth = useAppSelector((state) => state.auth);
   const ledger = useAppSelector((state) => state.ledger);
 
-  const handleConnectGoogle = (showToast: (msg: string) => void) => {
-    if (!auth.clientId) {
-      showToast('OAuth Client ID is missing. Set VITE_GOOGLE_CLIENT_ID in your .env file.');
-      return;
-    }
-    try {
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: auth.clientId,
-        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-        callback: (tokenResponse: any) => {
-          if (tokenResponse.error) {
-            showToast('Google authentication failed');
-            return;
+  const { clientId, accessToken, status, user, error } = auth;
+
+  // 1. Initialize Google Identity Client & auto-login on reload
+  useEffect(() => {
+    if (clientId) {
+      try {
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+          callback: (tokenResponse) => {
+            if (tokenResponse.error) {
+              return;
+            }
+            const token = tokenResponse.access_token;
+            dispatch(loginWithAccessToken(token));
+          },
+        });
+        window.googleTokenClient = client;
+
+        // Auto-login / Silent Refresh on page reload:
+        const sessionExpiry = sessionStorage.getItem('ledger_session_expiry_v1');
+        const token = sessionStorage.getItem('ledger_auth_token_v1');
+        const tokenExpiry = sessionStorage.getItem('ledger_token_expiry_v1');
+
+        if (sessionExpiry && parseInt(sessionExpiry, 10) > Date.now()) {
+          if (!token || !tokenExpiry || parseInt(tokenExpiry, 10) <= Date.now()) {
+            client.requestAccessToken({ prompt: '' });
           }
-          const token = tokenResponse.access_token;
-          dispatch(loginWithAccessToken(token))
-            .unwrap()
-            .then((res) => {
-              showToast(`Connected as ${res.user.name}`);
-            })
-            .catch((err) => {
-              showToast(err || 'Failed to authenticate Google profile');
-            });
-        },
-      });
-      client.requestAccessToken({ prompt: '' });
-    } catch (err) {
-      showToast('Client auth failed. Verify your Client ID.');
+        }
+      } catch (err) {
+        console.error('Failed to initialize Google login client', err);
+      }
+    }
+  }, [clientId, dispatch]);
+
+  // 2. Silent token refresh loop (Runs every 50 minutes while accessToken is present)
+  useEffect(() => {
+    if (accessToken) {
+      const timer = setTimeout(() => {
+        const client = window.googleTokenClient;
+        if (client) {
+          client.requestAccessToken({ prompt: '' });
+        }
+      }, 50 * 60 * 1000); // 50 minutes
+
+      return () => clearTimeout(timer);
+    }
+  }, [accessToken]);
+
+  // 3. Tab Focus listener to pull remote changes silently
+  useEffect(() => {
+    const handleFocus = () => {
+      if (accessToken) {
+        dispatch(syncGoogleDriveData(accessToken));
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [accessToken, dispatch]);
+
+  const handleConnectGoogle = (showToast: (msg: string) => void) => {
+    const client = window.googleTokenClient;
+    if (client) {
+      try {
+        client.requestAccessToken();
+      } catch (err) {
+        showToast('Google login popup failed to open');
+      }
+    } else {
+      showToast('Google Client ID is missing or not initialized.');
     }
   };
 
@@ -43,25 +86,13 @@ export const useAuth = () => {
     showToast('Google Account disconnected');
   };
 
-  const handleForceBackup = (showToast: (msg: string) => void) => {
-    if (!auth.accessToken) return;
-    dispatch(uploadBackupToDrive({ accessToken: auth.accessToken, force: true }))
-      .unwrap()
-      .then(() => {
-        showToast('Backup completed successfully');
-      })
-      .catch((err) => {
-        showToast(err || 'Manual backup failed');
-      });
-  };
-
   return {
     credentials: {
-      status: auth.status,
-      user: auth.user,
-      clientId: auth.clientId,
-      accessToken: auth.accessToken,
-      error: auth.error,
+      status,
+      user,
+      clientId,
+      accessToken,
+      error,
     },
     sync: {
       status: ledger.syncStatus,
@@ -72,7 +103,6 @@ export const useAuth = () => {
     actions: {
       connect: handleConnectGoogle,
       disconnect: handleDisconnect,
-      forceBackup: handleForceBackup,
       updateClientId: (id: string) => dispatch(setClientId(id)),
     }
   };
