@@ -71,7 +71,7 @@ export const createDataFile = async (accessToken: string): Promise<string> => {
 export const downloadData = async (
   accessToken: string,
   fileId: string
-): Promise<{ entries: Expense[]; caps: Caps }> => {
+): Promise<{ entries: Expense[]; caps: Caps; deletedIds?: string[] }> => {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -87,7 +87,7 @@ export const downloadData = async (
 export const uploadData = async (
   accessToken: string,
   fileId: string,
-  data: { entries: Expense[]; caps: Caps }
+  data: { entries: Expense[]; caps: Caps; deletedIds: string[] }
 ): Promise<void> => {
   const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
     method: 'PATCH',

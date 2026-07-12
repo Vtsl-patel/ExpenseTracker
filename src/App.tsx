@@ -72,14 +72,14 @@ function App() {
   // Online connection restoration auto-sync listener
   useEffect(() => {
     const handleOnline = () => {
-      if (accessToken && gdriveFileId) {
+      if (accessToken) {
         showToast('Connection restored. Syncing...');
-        dispatch(uploadBackupToDrive({ accessToken, force: true }));
+        dispatch(syncGoogleDriveData(accessToken));
       }
     };
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
-  }, [accessToken, gdriveFileId, dispatch]);
+  }, [accessToken, dispatch]);
 
   // --- Actions & Helpers ---
   const showToast = (msg: string) => {

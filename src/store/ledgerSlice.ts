@@ -8,11 +8,14 @@ import { logout } from './authSlice';
 interface LedgerState {
   entries: Expense[];
   caps: Caps;
+  deletedIds: string[];
   gdriveFileId: string | null;
   syncStatus: 'idle' | 'syncing' | 'synced' | 'failed';
   lastSynced: string | null;
   error: string | null;
 }
+
+const LS_DELETED_IDS = "ledger_deleted_ids_v1";
 
 const getInitialEntries = (): Expense[] => {
   try {
@@ -40,9 +43,19 @@ const getInitialCaps = (): Caps => {
   return raw;
 };
 
+const getInitialDeletedIds = (): string[] => {
+  try {
+    const stored = localStorage.getItem(LS_DELETED_IDS);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
 const initialState: LedgerState = {
   entries: getInitialEntries(),
   caps: getInitialCaps(),
+  deletedIds: getInitialDeletedIds(),
   gdriveFileId: null,
   syncStatus: 'idle',
   lastSynced: null,
@@ -56,23 +69,29 @@ export const syncGoogleDriveData = createAsyncThunk(
     try {
       let fileId = await findDataFile(accessToken);
       const state = getState() as { ledger: LedgerState };
-      const { entries, caps } = state.ledger;
+      const { entries, caps, deletedIds } = state.ledger;
 
       if (!fileId) {
         // 1. Create file if not found
         fileId = await createDataFile(accessToken);
-        // 2. Upload current local entries and caps
-        await uploadData(accessToken, fileId, { entries, caps });
-        return { fileId, entries, caps, isMerged: false };
+        // 2. Upload current local entries, caps, and tombstones
+        await uploadData(accessToken, fileId, { entries, caps, deletedIds });
+        return { fileId, entries, caps, deletedIds };
       } else {
         // 1. File exists, download it
         const remoteData = await downloadData(accessToken, fileId);
+        const remoteDeletedIds = remoteData.deletedIds || [];
 
-        // 2. Perform a non-destructive merge (union of entries by unique ID)
+        // 2. Merge deleted IDs (union tombstone list)
+        const mergedDeletedIds = Array.from(new Set([...deletedIds, ...remoteDeletedIds]));
+
+        // 3. Perform a non-destructive merge of entries (union of entries by unique ID),
+        // filtering out any entries that are marked as deleted!
         const localIds = new Set(entries.map((e) => e.id));
-        const mergedEntries = [...entries];
+        const mergedEntries = entries.filter((e) => !mergedDeletedIds.includes(e.id));
+
         remoteData.entries.forEach((remoteExp) => {
-          if (!localIds.has(remoteExp.id)) {
+          if (!mergedDeletedIds.includes(remoteExp.id) && !localIds.has(remoteExp.id)) {
             mergedEntries.push(remoteExp);
           }
         });
@@ -91,8 +110,13 @@ export const syncGoogleDriveData = createAsyncThunk(
         });
 
         // Upload the merged state back to Google Drive
-        await uploadData(accessToken, fileId, { entries: mergedEntries, caps: mergedCaps });
-        return { fileId, entries: mergedEntries, caps: mergedCaps, isMerged: true };
+        await uploadData(accessToken, fileId, { 
+          entries: mergedEntries, 
+          caps: mergedCaps, 
+          deletedIds: mergedDeletedIds 
+        });
+
+        return { fileId, entries: mergedEntries, caps: mergedCaps, deletedIds: mergedDeletedIds };
       }
     } catch (err: any) {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
@@ -109,7 +133,7 @@ export const uploadBackupToDrive = createAsyncThunk(
   async (options: { accessToken: string; force?: boolean }, { getState, rejectWithValue, dispatch }) => {
     try {
       const state = getState() as { ledger: LedgerState };
-      const { entries, caps, gdriveFileId, syncStatus } = state.ledger;
+      const { entries, caps, deletedIds, gdriveFileId, syncStatus } = state.ledger;
 
       if (!gdriveFileId) {
         throw new Error('No Google Drive file connected');
@@ -120,7 +144,7 @@ export const uploadBackupToDrive = createAsyncThunk(
         return rejectWithValue('Sync skipped: no pending changes');
       }
 
-      await uploadData(options.accessToken, gdriveFileId, { entries, caps });
+      await uploadData(options.accessToken, gdriveFileId, { entries, caps, deletedIds });
       return { entries, caps };
     } catch (err: any) {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
@@ -147,6 +171,10 @@ const ledgerSlice = createSlice({
     deleteExpense: (state, action: PayloadAction<string>) => {
       state.entries = state.entries.filter((e) => e.id !== action.payload);
       localStorage.setItem(LS_ENTRIES, JSON.stringify(state.entries));
+      if (!state.deletedIds.includes(action.payload)) {
+        state.deletedIds.push(action.payload);
+        localStorage.setItem(LS_DELETED_IDS, JSON.stringify(state.deletedIds));
+      }
       state.syncStatus = 'idle'; // Reset sync state to idle
     },
     updateCap: (state, action: PayloadAction<{ categoryId: string; period: 'weekly' | 'monthly'; value: number }>) => {
@@ -185,6 +213,7 @@ const ledgerSlice = createSlice({
         state.gdriveFileId = action.payload.fileId;
         state.entries = action.payload.entries;
         state.caps = action.payload.caps;
+        state.deletedIds = action.payload.deletedIds;
         state.syncStatus = 'synced';
         state.lastSynced = new Date().toLocaleTimeString('en-IN', {
           hour: '2-digit',
@@ -193,6 +222,7 @@ const ledgerSlice = createSlice({
         });
         localStorage.setItem(LS_ENTRIES, JSON.stringify(state.entries));
         localStorage.setItem(LS_CAPS, JSON.stringify(state.caps));
+        localStorage.setItem(LS_DELETED_IDS, JSON.stringify(state.deletedIds));
       })
       .addCase(syncGoogleDriveData.rejected, (state, action) => {
         state.syncStatus = 'failed';
