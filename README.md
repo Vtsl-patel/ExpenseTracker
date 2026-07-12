@@ -1,4 +1,4 @@
-# Ledger - Expense Tracker
+# ExpsTrck - Expense Tracker
 
 A premium, local-first expense tracker built with React, TypeScript, Redux, and Tailwind CSS v4, featuring offline capability and secure background backups to Google Drive.
 

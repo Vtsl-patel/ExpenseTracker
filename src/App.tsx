@@ -95,7 +95,7 @@ function App() {
       {/* Brand Header */}
       <header className="flex items-center justify-between py-6 border-b border-line mb-6">
         <div className="flex items-baseline gap-2.5">
-          <span className="font-display text-[26px] font-semibold tracking-[-0.02em] text-ink">Ledger</span>
+          <span className="font-display text-[26px] font-semibold tracking-[-0.02em] text-ink">ExpsTrck</span>
           <span className="text-xs text-ink-faint tracking-[0.06em] uppercase">expense tracker</span>
         </div>
         
