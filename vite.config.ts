@@ -8,4 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  build: {
+    sourcemap: false, // Blocks browser DevTools from reconstructing original TS/TSX source code
+  }
 })
