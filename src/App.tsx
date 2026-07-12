@@ -81,6 +81,17 @@ function App() {
     return () => window.removeEventListener('online', handleOnline);
   }, [accessToken, dispatch]);
 
+  // Focus restoration auto-sync listener (Fetches updates silently when window/tab is refocussed)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (accessToken) {
+        dispatch(syncGoogleDriveData(accessToken));
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [accessToken, dispatch]);
+
   // --- Actions & Helpers ---
   const showToast = (msg: string) => {
     setToastMsg(msg);

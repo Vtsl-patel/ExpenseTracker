@@ -105,8 +105,10 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               <button
                 key={c.id}
                 type="button"
-                className={`border border-line bg-bg-sunken rounded-[20px] px-3.5 py-2 text-[13px] font-medium text-ink-soft flex items-center gap-1.5 cursor-pointer transition duration-150 ease-in-out ${
-                  c.id === selectedCat ? 'border-accent text-ink bg-accent-soft' : 'hover:border-ink-faint'
+                className={`border rounded-[20px] px-3.5 py-2 text-[13px] font-medium flex items-center gap-1.5 cursor-pointer transition duration-150 ease-in-out ${
+                  c.id === selectedCat 
+                    ? 'border-accent text-ink bg-accent-soft shadow-sm' 
+                    : 'border-line bg-bg-sunken text-ink-soft hover:border-ink-faint'
                 }`}
                 onClick={() => setSelectedCat(c.id)}
               >

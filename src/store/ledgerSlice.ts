@@ -133,15 +133,10 @@ export const uploadBackupToDrive = createAsyncThunk(
   async (options: { accessToken: string; force?: boolean }, { getState, rejectWithValue, dispatch }) => {
     try {
       const state = getState() as { ledger: LedgerState };
-      const { entries, caps, deletedIds, gdriveFileId, syncStatus } = state.ledger;
+      const { entries, caps, deletedIds, gdriveFileId } = state.ledger;
 
       if (!gdriveFileId) {
         throw new Error('No Google Drive file connected');
-      }
-
-      // If not forced and not in 'idle' state (i.e. no unsaved changes), skip backup
-      if (!options.force && syncStatus !== 'idle') {
-        return rejectWithValue('Sync skipped: no pending changes');
       }
 
       await uploadData(options.accessToken, gdriveFileId, { entries, caps, deletedIds });
