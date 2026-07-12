@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { Expense } from '../types';
+import { useAppDispatch, useAppSelector } from '../store';
+import { deleteExpense } from '../store/ledgerSlice';
 import {
   CAT_MAP,
   CATEGORIES,
@@ -8,12 +9,10 @@ import {
   endOfMonth,
 } from '../constants';
 
-interface HistoryProps {
-  entries: Expense[];
-  onDeleteEntry: (id: string) => void;
-}
+export const History: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const entries = useAppSelector((state) => state.ledger.entries);
 
-export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
   const today = new Date();
   const todayKey = dkey(today);
 
@@ -57,7 +56,7 @@ export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
 
   // Add empty placeholders for offsets
   for (let i = 0; i < startOffset; i++) {
-    daysGrid.push(<div className="cal-day empty" key={`empty-${i}`} />);
+    daysGrid.push(<div className="bg-transparent pointer-events-none w-full aspect-square" key={`empty-${i}`} />);
   }
 
   // Add month days
@@ -66,20 +65,33 @@ export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
     const key = dkey(currentDayDate);
     const amt = totalsByDay[key] || 0;
 
-    const classes: string[] = ['cal-day'];
-    if (amt > 0) classes.push('has-spend');
-    if (key === todayKey) classes.push('today');
-    if (key === selectedDay) classes.push('selected');
+    const isSelected = key === selectedDay;
+    const isToday = key === todayKey;
+    const hasSpend = amt > 0;
+
+    const dayClass = `aspect-square rounded-sm border border-transparent flex flex-col items-center justify-center gap-0.5 text-xs relative transition duration-150 ease-in-out w-full cursor-pointer ${
+      isSelected 
+        ? 'bg-accent text-white' 
+        : hasSpend 
+          ? 'bg-accent-soft text-ink hover:border-accent' 
+          : 'bg-bg-sunken text-ink hover:border-accent'
+    } ${
+      isToday ? 'outline outline-2 outline-accent outline-offset-[-2px]' : ''
+    }`;
 
     daysGrid.push(
       <button
         type="button"
         key={`day-${day}`}
-        className={classes.join(' ')}
+        className={dayClass}
         onClick={() => setSelectedDay(key)}
       >
-        <span className="d">{day}</span>
-        {amt > 0 && <span className="amt">{fmt(amt)}</span>}
+        <span className="font-semibold">{day}</span>
+        {amt > 0 && (
+          <span className={`text-[9px] font-mono ${isSelected ? 'text-[rgba(255,255,255,0.85)]' : 'text-ink-soft'}`}>
+            {fmt(amt)}
+          </span>
+        )}
       </button>
     );
   }
@@ -102,30 +114,44 @@ export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
 
   const dayTotal = dayEntries.reduce((acc, e) => acc + e.amount, 0);
 
+  const handleDelete = (id: string) => {
+    dispatch(deleteExpense(id));
+  };
+
   return (
     <div>
       {/* Calendar Grid Container */}
-      <div className="card pad">
-        <div className="cal-head">
-          <button className="icon-btn" id="prevMonth" onClick={handlePrevMonth} aria-label="Previous month">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="bg-bg-elev border border-line rounded-custom p-6 shadow-custom">
+        <div className="flex items-center justify-between mb-3.5">
+          <button 
+            className="w-[38px] h-[38px] rounded-full border border-line bg-bg-elev flex items-center justify-center text-ink-soft hover:border-accent hover:text-accent transition duration-150 ease-in-out cursor-pointer" 
+            id="prevMonth" 
+            onClick={handlePrevMonth} 
+            aria-label="Previous month"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <span className="month-label" id="monthLabel">
+          <span className="font-display text-base font-semibold text-ink" id="monthLabel">
             {monthLabel}
           </span>
-          <button className="icon-btn" id="nextMonth" onClick={handleNextMonth} aria-label="Next month">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <button 
+            className="w-[38px] h-[38px] rounded-full border border-line bg-bg-elev flex items-center justify-center text-ink-soft hover:border-accent hover:text-accent transition duration-150 ease-in-out cursor-pointer" 
+            id="nextMonth" 
+            onClick={handleNextMonth} 
+            aria-label="Next month"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
               <path d="M9 18l6-6-6-6" />
             </svg>
           </button>
         </div>
 
-        <div className="cal-grid" id="calGrid">
+        <div className="grid grid-cols-7 gap-1.25" id="calGrid">
           {/* Day of Week headers */}
           {dowLabels.map((d) => (
-            <div className="cal-dow" key={d}>
+            <div className="text-center text-[10px] text-ink-faint font-semibold uppercase pb-1 tracking-[0.05em]" key={d}>
               {d}
             </div>
           ))}
@@ -135,12 +161,12 @@ export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
       </div>
 
       {/* Selected Day Entries Panel */}
-      <div className="card pad daypanel">
-        <div className="sec-head">
-          <span className="sec-title" id="dayPanelTitle">
+      <div className="bg-bg-elev border border-line rounded-custom p-6 shadow-custom mt-4.5">
+        <div className="flex items-baseline justify-between mb-3.5">
+          <span className="font-display text-lg font-semibold text-ink" id="dayPanelTitle">
             {dayPanelTitle}
           </span>
-          <span className="muted" id="dayPanelTotal">
+          <span className="text-ink-faint text-[13px] font-mono" id="dayPanelTotal">
             {dayEntries.length > 0 ? fmt(dayTotal) : ''}
           </span>
         </div>
@@ -153,21 +179,21 @@ export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
                 month: 'short',
               });
               return (
-                <div className="entry" key={e.id}>
-                  <span className="swatch" style={{ backgroundColor: `${c.color}22` }}>
+                <div className="flex items-center gap-3.5 py-3.25 border-b border-line last:border-b-0 group" key={e.id}>
+                  <span className="w-9 h-9 rounded-[10px] flex items-center justify-center text-base shrink-0" style={{ backgroundColor: `${c.color}22` }}>
                     {c.icon}
                   </span>
-                  <span className="meta">
-                    <div className="note">{e.note ? e.note : c.name}</div>
-                    <div className="cat">
+                  <span className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-ink truncate">{e.note ? e.note : c.name}</div>
+                    <div className="text-xs text-ink-faint mt-0.5">
                       {c.name} · {dateLabel}
                     </div>
                   </span>
-                  <span className="amt">{fmt(e.amount)}</span>
+                  <span className="font-mono text-sm font-semibold text-ink shrink-0">{fmt(e.amount)}</span>
                   <button
-                    className="del"
+                    className="opacity-0 group-hover:opacity-100 transition duration-150 ease-in-out w-6.5 h-6.5 rounded-full border-none bg-transparent text-ink-faint flex items-center justify-center hover:text-bad hover:bg-bg-sunken cursor-pointer focus:opacity-100 outline-none"
                     title="Delete"
-                    onClick={() => onDeleteEntry(e.id)}
+                    onClick={() => handleDelete(e.id)}
                   >
                     <svg
                       width="14"
@@ -185,9 +211,9 @@ export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
               );
             })
           ) : (
-            <div className="empty">
-              <div className="big">📭</div>
-              <p>No expenses on this date.</p>
+            <div className="text-center p-[40px_20px] text-ink-faint">
+              <div className="text-[32px] mb-2.5">📭</div>
+              <p className="text-[13px] text-ink-soft">No expenses on this date.</p>
             </div>
           )}
         </div>
@@ -195,3 +221,5 @@ export const History: React.FC<HistoryProps> = ({ entries, onDeleteEntry }) => {
     </div>
   );
 };
+
+export default History;
