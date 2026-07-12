@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { useAppDispatch, useAppSelector } from '../store';
-import { updateCap } from '../store/ledgerSlice';
 import { CATEGORIES } from '../constants';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
+import { useLedger } from '../hooks/useLedger';
 
 export const CapsConfig: React.FC = () => {
-  const dispatch = useAppDispatch();
-  const caps = useAppSelector((state) => state.ledger.caps);
+  const ledger = useLedger();
+  const { caps, actions } = ledger;
+  const { updateCap } = actions;
   const [activePeriod, setActivePeriod] = useState<'weekly' | 'monthly'>('monthly');
 
   const handleCapChange = (categoryId: string, valueStr: string) => {
     // Permit empty string or valid positive decimal number with up to 2 decimal places
     if (valueStr === '' || /^\d*\.?\d{0,2}$/.test(valueStr)) {
       const val = valueStr === '' ? 0 : parseFloat(valueStr);
-      dispatch(updateCap({ categoryId, period: activePeriod, value: val }));
+      updateCap(categoryId, activePeriod, val);
     }
   };
 

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { useAppDispatch, useAppSelector } from '../store';
-import { deleteExpense } from '../store/ledgerSlice';
+import { useLedger } from '../hooks/useLedger';
 import {
   fmt,
   dkey,
@@ -12,13 +11,14 @@ import { EntryRow } from './EntryRow';
 import { EmptyState } from './ui/EmptyState';
 
 export const History: React.FC = () => {
-  const dispatch = useAppDispatch();
-  const entries = useAppSelector((state) => state.ledger.entries);
+  const ledger = useLedger();
+  const { entries, actions } = ledger;
+  const { deleteExpense } = actions;
 
   const today = new Date();
   const todayKey = dkey(today);
 
-  // States localized to the History view
+  // States localized to the History calendar grid
   const [calCursor, setCalCursor] = useState<Date>(() => {
     const d = new Date();
     d.setDate(1);
@@ -42,7 +42,6 @@ export const History: React.FC = () => {
   });
 
   const firstDayOfMonth = new Date(calCursor.getFullYear(), calCursor.getMonth(), 1);
-  // Get offset (0=Mon, 1=Tue, ..., 6=Sun)
   const startOffset = (firstDayOfMonth.getDay() + 6) % 7;
   const daysInMonth = endOfMonth(calCursor).getDate();
 
@@ -116,10 +115,6 @@ export const History: React.FC = () => {
 
   const dayTotal = dayEntries.reduce((acc, e) => acc + e.amount, 0);
 
-  const handleDelete = (id: string) => {
-    dispatch(deleteExpense(id));
-  };
-
   return (
     <div className="flex flex-col gap-4.5">
       {/* Calendar Grid Container */}
@@ -178,7 +173,7 @@ export const History: React.FC = () => {
               <EntryRow 
                 key={e.id}
                 entry={e}
-                onDelete={handleDelete}
+                onDelete={deleteExpense}
               />
             ))
           ) : (

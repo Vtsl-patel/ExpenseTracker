@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAppDispatch } from '../store';
-import { addExpense } from '../store/ledgerSlice';
 import { CATEGORIES, dkey } from '../constants';
 import { DatePicker } from './DatePicker';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { useLedger } from '../hooks/useLedger';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -17,7 +16,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   onClose,
   showToast,
 }) => {
-  const dispatch = useAppDispatch();
+  const ledger = useLedger();
+  const { addExpense } = ledger.actions;
   const todayKey = dkey(new Date());
 
   const [amount, setAmount] = useState<string>('');
@@ -51,12 +51,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       showToast('Enter a valid amount');
       return;
     }
-    dispatch(addExpense({
-      amount: amtFloat,
-      category: selectedCat,
-      date: date || todayKey,
-      note: note.trim(),
-    }));
+    addExpense(amtFloat, selectedCat, date || todayKey, note.trim());
     onClose();
   };
 

@@ -1,16 +1,6 @@
 import React from 'react';
-import { useAppDispatch, useAppSelector } from '../store';
-import { deleteExpense } from '../store/ledgerSlice';
-import {
-  CATEGORIES,
-  fmt,
-  dkey,
-  startOfWeek,
-  startOfMonth,
-  endOfMonth,
-  entriesBetween,
-  sum,
-} from '../constants';
+import { useLedger } from '../hooks/useLedger';
+import { CATEGORIES, fmt } from '../constants';
 import { StatCard } from './ui/StatCard';
 import { CategoryRow } from './CategoryRow';
 import { EntryRow } from './EntryRow';
@@ -22,55 +12,25 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToHistory }) => {
-  const dispatch = useAppDispatch();
-  
-  // Fetch entries and caps from Redux store
-  const { entries, caps } = useAppSelector((state) => state.ledger);
+  const ledger = useLedger();
 
-  const now = new Date();
-  const todayKey = dkey(now);
+  const {
+    entries,
+    totals,
+    capsTotals,
+    breakdown,
+    actions,
+  } = ledger;
 
-  const mFrom = startOfMonth(now);
-  const mTo = endOfMonth(now);
-
-  const wFrom = startOfWeek(now);
-  const wTo = new Date(wFrom.getTime() + 6 * 86400000); // end of week
-
-  // Filter entries
-  const monthEntries = entriesBetween(entries, mFrom, mTo);
-  const weekEntries = entriesBetween(entries, wFrom, wTo);
-
-  // Sums
-  const todayTotal = sum(entries.filter((e) => e.date === todayKey));
-  const weekTotal = sum(weekEntries);
-  const monthTotal = sum(monthEntries);
-
-  // Caps sum
-  const weeklyCap = CATEGORIES.reduce((acc, c) => acc + (caps[c.id]?.weekly || 0), 0);
-  const monthlyCap = CATEGORIES.reduce((acc, c) => acc + (caps[c.id]?.monthly || 0), 0);
-
-  // Category values for this month
-  const byCat = CATEGORIES.reduce((acc, c) => {
-    acc[c.id] = 0;
-    return acc;
-  }, {} as Record<string, number>);
-
-  monthEntries.forEach((e) => {
-    if (byCat[e.category] !== undefined) {
-      byCat[e.category] += e.amount;
-    }
-  });
-
-  const maxCat = Math.max(...Object.values(byCat), 1);
+  const { today: todayTotal, week: weekTotal, month: monthTotal } = totals;
+  const { weekly: weeklyCap, monthly: monthlyCap } = capsTotals;
+  const { monthEntries, category: categoryBreakdown, maxCategorySpend } = breakdown;
+  const { deleteExpense } = actions;
 
   // Sort and slice recent entries (8 most recent)
   const recent = [...entries]
     .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
     .slice(0, 8);
-
-  const handleDelete = (id: string) => {
-    dispatch(deleteExpense(id));
-  };
 
   return (
     <div className="flex flex-col gap-4.5">
@@ -108,8 +68,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToHistory }) => 
               <CategoryRow
                 key={c.id}
                 category={c}
-                amount={byCat[c.id] || 0}
-                maxAmount={maxCat}
+                amount={categoryBreakdown[c.id] || 0}
+                maxAmount={maxCategorySpend}
               />
             ))
           )}
@@ -134,7 +94,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToHistory }) => 
               <EntryRow 
                 key={e.id}
                 entry={e}
-                onDelete={handleDelete}
+                onDelete={deleteExpense}
               />
             ))
           ) : (

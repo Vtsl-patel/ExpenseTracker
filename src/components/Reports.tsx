@@ -1,14 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { useAppSelector } from '../store';
+import { useLedger } from '../hooks/useLedger';
 import type { ReportMode } from '../types';
 import { DatePicker } from './DatePicker';
+import { calculateReportMetrics } from '../utils/report';
 import {
   CATEGORIES,
-  CAT_MAP,
   startOfMonth,
   endOfMonth,
-  entriesBetween,
-  sum,
   dkey,
 } from '../constants';
 import { Card } from './ui/Card';
@@ -17,8 +15,7 @@ import { CategoryRow } from './CategoryRow';
 import { EmptyState } from './ui/EmptyState';
 
 export const Reports: React.FC = () => {
-  // Fetch entries from Redux
-  const entries = useAppSelector((state) => state.ledger.entries);
+  const { entries } = useLedger();
 
   const now = new Date();
   const defaultFrom = dkey(startOfMonth(now));
@@ -64,54 +61,20 @@ export const Reports: React.FC = () => {
     return [from, to, `${appliedRange.from} → ${appliedRange.to}`];
   }, [reportMode, appliedRange, now]);
 
-  // Calculations based on calculated range
-  const filteredEntries = useMemo(() => {
-    return entriesBetween(entries, fromDate, toDate);
+  // Execute external calculation helper utility
+  const metrics = useMemo(() => {
+    return calculateReportMetrics(entries, fromDate, toDate);
   }, [entries, fromDate, toDate]);
 
-  const totalSpend = useMemo(() => {
-    return sum(filteredEntries);
-  }, [filteredEntries]);
-
-  const daysInRange = useMemo(() => {
-    const diffTime = Math.abs(toDate.getTime() - fromDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return Math.max(1, diffDays);
-  }, [fromDate, toDate]);
-
-  const dailyAverage = totalSpend / daysInRange;
-
-  // Compute breakdown by category
-  const categoryTotals = useMemo(() => {
-    const totals = CATEGORIES.reduce((acc, c) => {
-      acc[c.id] = 0;
-      return acc;
-    }, {} as Record<string, number>);
-
-    filteredEntries.forEach((e) => {
-      if (totals[e.category] !== undefined) {
-        totals[e.category] += e.amount;
-      }
-    });
-    return totals;
-  }, [filteredEntries]);
-
-  const maxCategorySpend = useMemo(() => {
-    return Math.max(...Object.values(categoryTotals), 1);
-  }, [categoryTotals]);
-
-  // Compute top category label
-  const topCategoryLabel = useMemo(() => {
-    if (!filteredEntries.length) return '—';
-    const sorted = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
-    const topId = sorted[0]?.[0];
-    const topVal = sorted[0]?.[1];
-    if (topId && topVal > 0) {
-      const cat = CAT_MAP[topId];
-      return `${cat?.icon || ''} ${cat?.name || ''}`;
-    }
-    return '—';
-  }, [filteredEntries, categoryTotals]);
+  const {
+    filteredEntries,
+    totalSpend,
+    daysInRange,
+    dailyAverage,
+    categoryTotals,
+    maxCategorySpend,
+    topCategoryLabel,
+  } = metrics;
 
   return (
     <Card>

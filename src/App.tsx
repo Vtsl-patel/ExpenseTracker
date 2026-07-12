@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useAppDispatch, useAppSelector } from './store';
+import { useAppDispatch } from './store';
 import type { Tab } from './types';
 import { LS_THEME } from './constants';
-import { logout, loginWithAccessToken } from './store/authSlice';
+import { useAuth } from './hooks/useAuth';
+import { useLedger } from './hooks/useLedger';
 import { syncGoogleDriveData, uploadBackupToDrive } from './store/ledgerSlice';
 
 import { Toast } from './components/Toast';
@@ -20,10 +21,15 @@ const moonPath = 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z';
 
 function App() {
   const dispatch = useAppDispatch();
+  const auth = useAuth();
+  const ledger = useLedger();
 
-  // --- Redux Selectors ---
-  const { clientId, accessToken, user, status: authStatus } = useAppSelector((state) => state.auth);
-  const { entries, caps, gdriveFileId, syncStatus, lastSynced, error: syncError } = useAppSelector((state) => state.ledger);
+  const { credentials, sync, actions } = auth;
+  const { entries, caps } = ledger;
+
+  const { accessToken, status: authStatus, user } = credentials;
+  const { status: syncStatus, gdriveFileId, lastSynced, error: syncError } = sync;
+  const { connect, disconnect, forceBackup } = actions;
 
   // --- Local UI States ---
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -82,55 +88,6 @@ function App() {
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  const handleConnectGoogle = () => {
-    if (!clientId) {
-      showToast('OAuth Client ID is missing. Set VITE_GOOGLE_CLIENT_ID in your .env file.');
-      return;
-    }
-    try {
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-        callback: (tokenResponse: any) => {
-          if (tokenResponse.error) {
-            showToast('Google authentication failed');
-            return;
-          }
-
-          const token = tokenResponse.access_token;
-          dispatch(loginWithAccessToken(token))
-            .unwrap()
-            .then((res) => {
-              showToast(`Connected as ${res.user.name}`);
-            })
-            .catch((err) => {
-              showToast(err || 'Failed to authenticate Google profile');
-            });
-        },
-      });
-      client.requestAccessToken({ prompt: '' });
-    } catch (err: any) {
-      showToast('Client auth failed. Verify your Client ID.');
-    }
-  };
-
-  const handleDisconnect = () => {
-    dispatch(logout());
-    showToast('Google Account disconnected');
-  };
-
-  const handleForceBackup = () => {
-    if (!accessToken) return;
-    dispatch(uploadBackupToDrive({ accessToken, force: true }))
-      .unwrap()
-      .then(() => {
-        showToast('Backup completed successfully');
-      })
-      .catch((err) => {
-        showToast(err || 'Manual backup failed');
-      });
   };
 
   return (
@@ -195,9 +152,9 @@ function App() {
               syncStatus={syncStatus}
               lastSynced={lastSynced}
               syncError={syncError}
-              onConnect={handleConnectGoogle}
-              onDisconnect={handleDisconnect}
-              onForceBackup={handleForceBackup}
+              onConnect={() => connect(showToast)}
+              onDisconnect={() => disconnect(showToast)}
+              onForceBackup={() => forceBackup(showToast)}
               onClose={() => setIsProfileOpen(false)}
             />
           )}
