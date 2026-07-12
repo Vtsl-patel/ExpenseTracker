@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../store';
-import { addExpense, deleteExpense, updateCap } from '../store/ledgerSlice';
+import { addExpense, deleteExpense, updateCap, syncGoogleDriveData, uploadBackupToDrive } from '../store/ledgerSlice';
 import {
   CATEGORIES,
   dkey,
@@ -13,6 +14,7 @@ import {
 export const useLedger = () => {
   const dispatch = useAppDispatch();
   const { entries, caps, syncStatus, gdriveFileId, lastSynced, error } = useAppSelector((state) => state.ledger);
+  const { accessToken } = useAppSelector((state) => state.auth);
 
   const now = new Date();
   const todayKey = dkey(now);
@@ -48,6 +50,38 @@ export const useLedger = () => {
 
   const maxCategorySpend = Math.max(...Object.values(categoryBreakdown), 1);
 
+  // --- Background Synchronization Effects ---
+
+  // A. Google Drive Initial Sync Setup (Runs on successful Login/Refresh)
+  useEffect(() => {
+    if (accessToken) {
+      dispatch(syncGoogleDriveData(accessToken));
+    }
+  }, [accessToken, dispatch]);
+
+  // B. Debounced Background Auto-Sync on Local Mutations
+  useEffect(() => {
+    if (!accessToken || !gdriveFileId || syncStatus === 'syncing') return;
+    if (syncStatus !== 'idle') return;
+
+    const syncTimer = setTimeout(() => {
+      dispatch(uploadBackupToDrive({ accessToken }));
+    }, 1500);
+
+    return () => clearTimeout(syncTimer);
+  }, [entries, caps, accessToken, gdriveFileId, syncStatus, dispatch]);
+
+  // C. Online Reconnection Recovery listener
+  useEffect(() => {
+    const handleOnline = () => {
+      if (accessToken) {
+        dispatch(syncGoogleDriveData(accessToken));
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [accessToken, dispatch]);
+
   // Actions
   const handleAddExpense = (amount: number, category: string, date: string, note: string) => {
     dispatch(addExpense({ amount, category, date, note }));
@@ -59,6 +93,18 @@ export const useLedger = () => {
 
   const handleUpdateCap = (categoryId: string, period: 'weekly' | 'monthly', value: number) => {
     dispatch(updateCap({ categoryId, period, value }));
+  };
+
+  const handleForceBackup = (showToast: (msg: string) => void) => {
+    if (!accessToken) return;
+    dispatch(uploadBackupToDrive({ accessToken, force: true }))
+      .unwrap()
+      .then(() => {
+        showToast('Backup completed successfully');
+      })
+      .catch((err) => {
+        showToast(err || 'Manual backup failed');
+      });
   };
 
   return {
@@ -90,6 +136,7 @@ export const useLedger = () => {
       addExpense: handleAddExpense,
       deleteExpense: handleDeleteExpense,
       updateCap: handleUpdateCap,
+      forceBackup: handleForceBackup,
     }
   };
 };

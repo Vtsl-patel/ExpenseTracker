@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useAppDispatch } from './store';
 import type { Tab } from './types';
 import { LS_THEME } from './constants';
 import { useAuth } from './hooks/useAuth';
 import { useLedger } from './hooks/useLedger';
-import { syncGoogleDriveData, uploadBackupToDrive } from './store/ledgerSlice';
 
 import { Toast } from './components/Toast';
 import { AddExpenseModal } from './components/AddExpenseModal';
@@ -20,16 +18,14 @@ const sunPath = 'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.22 4.22l1.42
 const moonPath = 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z';
 
 function App() {
-  const dispatch = useAppDispatch();
   const auth = useAuth();
   const ledger = useLedger();
 
-  const { credentials, sync, actions } = auth;
-  const { entries, caps } = ledger;
-
-  const { accessToken, status: authStatus, user } = credentials;
-  const { status: syncStatus, gdriveFileId, lastSynced, error: syncError } = sync;
-  const { connect, disconnect, forceBackup } = actions;
+  const { credentials, sync, actions: authActions } = auth;
+  const { status: authStatus, user } = credentials;
+  const { status: syncStatus, lastSynced, error: syncError } = sync;
+  const { connect, disconnect } = authActions;
+  const { forceBackup } = ledger.actions;
 
   // --- Local UI States ---
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -43,56 +39,12 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
 
-  // --- Effects ---
-  // Theme management
+  // Theme management effect (purely visual)
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem(LS_THEME, theme);
   }, [theme]);
 
-  // Google Drive Initial Sync Setup (Runs on successful Login)
-  useEffect(() => {
-    if (accessToken) {
-      dispatch(syncGoogleDriveData(accessToken));
-    }
-  }, [accessToken, dispatch]);
-
-  // Debounced Background Auto-Sync
-  useEffect(() => {
-    if (!accessToken || !gdriveFileId || syncStatus === 'syncing') return;
-    if (syncStatus !== 'idle') return;
-
-    const syncTimer = setTimeout(() => {
-      dispatch(uploadBackupToDrive({ accessToken }));
-    }, 1500);
-
-    return () => clearTimeout(syncTimer);
-  }, [entries, caps, accessToken, gdriveFileId, syncStatus, dispatch]);
-
-  // Online connection restoration auto-sync listener
-  useEffect(() => {
-    const handleOnline = () => {
-      if (accessToken) {
-        showToast('Connection restored. Syncing...');
-        dispatch(syncGoogleDriveData(accessToken));
-      }
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [accessToken, dispatch]);
-
-  // Focus restoration auto-sync listener (Fetches updates silently when window/tab is refocussed)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (accessToken) {
-        dispatch(syncGoogleDriveData(accessToken));
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [accessToken, dispatch]);
-
-  // --- Actions & Helpers ---
   const showToast = (msg: string) => {
     setToastMsg(msg);
   };
