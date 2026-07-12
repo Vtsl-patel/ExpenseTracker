@@ -11,6 +11,8 @@ import { Dashboard } from './components/Dashboard';
 import { History } from './components/History';
 import { Reports } from './components/Reports';
 import { CapsConfig } from './components/Caps';
+import { ProfileDropdown } from './components/ProfileDropdown';
+import { Button } from './components/ui/Button';
 
 // Theme SVG Path Constants
 const sunPath = 'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42';
@@ -143,8 +145,8 @@ function App() {
         {/* Header Actions */}
         <div className="flex items-center gap-2.5 relative">
           {/* Theme Toggler */}
-          <button 
-            className="w-[38px] h-[38px] rounded-full border border-line bg-bg-elev flex items-center justify-center text-ink-soft hover:border-accent hover:text-accent transition duration-150 ease-in-out cursor-pointer" 
+          <Button 
+            variant="icon"
             id="themeToggle" 
             title="Toggle theme" 
             onClick={handleToggleTheme}
@@ -152,7 +154,7 @@ function App() {
             <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
               <path d={theme === 'dark' ? moonPath : sunPath} />
             </svg>
-          </button>
+          </Button>
 
           {/* User Profile Button */}
           <button 
@@ -180,139 +182,41 @@ function App() {
           {/* Close Menu Backdrop Overlay */}
           {isProfileOpen && (
             <div 
-              style={{ position: 'fixed', inset: 0, zIndex: 90, cursor: 'default' }} 
+              className="fixed inset-0 z-90 cursor-default"
               onClick={() => setIsProfileOpen(false)} 
             />
           )}
 
           {/* Connection Profile Menu Card */}
           {isProfileOpen && (
-            <div className="absolute top-12 right-0 w-[280px] bg-bg-elev border border-line rounded-lg shadow-custom p-4 z-[95] animate-slideup flex flex-col gap-3 max-[480px]:-right-5">
-              {authStatus === 'authenticated' && user ? (
-                <div className="flex flex-col gap-3">
-                  
-                  {/* Avatar & Info */}
-                  <div className="flex items-center gap-2.5 pb-2.5 border-b border-line">
-                    <img 
-                      src={user.picture} 
-                      alt={user.name} 
-                      className="w-9 h-9 rounded-full border border-line"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-semibold text-ink truncate">{user.name}</div>
-                      <div className="text-[11px] text-ink-faint truncate">{user.email}</div>
-                    </div>
-                  </div>
-
-                  {/* Sync Status Details */}
-                  <div className="text-[12px] flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-soft">Sync Status:</span>
-                      <span 
-                        className="font-semibold"
-                        style={{ 
-                          color: syncStatus === 'failed' ? 'var(--color-bad)' : 'var(--color-good)' 
-                        }}
-                      >
-                        {syncStatus === 'syncing' && 'Syncing...'}
-                        {syncStatus === 'synced' && 'Synced'}
-                        {syncStatus === 'failed' && 'Failed'}
-                        {syncStatus === 'idle' && 'Pending Sync'}
-                      </span>
-                    </div>
-                    {lastSynced && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-ink-soft">Last backup:</span>
-                        <span className="text-ink-faint font-mono">{lastSynced}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {syncStatus === 'failed' && syncError && (
-                    <div className="text-[10px] text-bad bg-bad/10 p-1.5 rounded-sm">
-                      Error: {syncError}
-                    </div>
-                  )}
-
-                  {/* Sync Actions */}
-                  <div className="flex flex-col gap-2 mt-1">
-                    <button 
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-[14px] py-[8px] rounded-sm text-xs font-semibold transition duration-150 ease-in-out border border-transparent bg-accent text-white hover:brightness-108 cursor-pointer" 
-                      onClick={() => {
-                        handleForceBackup();
-                        setIsProfileOpen(false);
-                      }}
-                      disabled={syncStatus === 'syncing'}
-                    >
-                      Force Backup
-                    </button>
-                    <button 
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-[14px] py-[8px] rounded-sm text-xs font-semibold transition duration-150 ease-in-out border border-line bg-bg-sunken text-ink hover:border-accent hover:text-accent cursor-pointer text-bad hover:text-bad" 
-                      onClick={() => {
-                        handleDisconnect();
-                        setIsProfileOpen(false);
-                      }}
-                    >
-                      Disconnect Account
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2.5 text-center">
-                  <div className="text-sm font-semibold text-ink">Google Sync</div>
-                  <p className="text-ink-faint text-[12px] leading-relaxed">
-                    Connect your account to backup your transaction history and budgets to Google Drive.
-                  </p>
-                  <button 
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-[14px] py-[8px] rounded-sm text-xs font-semibold transition duration-150 ease-in-out border border-transparent bg-accent text-white hover:brightness-108 cursor-pointer mt-1" 
-                    onClick={() => {
-                      handleConnectGoogle();
-                      setIsProfileOpen(false);
-                    }}
-                  >
-                    Connect Google Account
-                  </button>
-                </div>
-              )}
-            </div>
+            <ProfileDropdown
+              authStatus={authStatus}
+              user={user}
+              syncStatus={syncStatus}
+              lastSynced={lastSynced}
+              syncError={syncError}
+              onConnect={handleConnectGoogle}
+              onDisconnect={handleDisconnect}
+              onForceBackup={handleForceBackup}
+              onClose={() => setIsProfileOpen(false)}
+            />
           )}
         </div>
       </header>
 
       {/* Tabs Navigation */}
       <nav className="flex gap-1 my-5 border-b border-line overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <button
-          className={`bg-transparent border-b-2 px-4 pb-3 pt-2.5 text-sm font-semibold whitespace-nowrap cursor-pointer transition duration-150 ease-in-out ${
-            currentTab === 'dashboard' ? 'text-ink border-b-accent' : 'text-ink-faint border-b-transparent hover:text-ink'
-          }`}
-          onClick={() => setCurrentTab('dashboard')}
-        >
-          Dashboard
-        </button>
-        <button
-          className={`bg-transparent border-b-2 px-4 pb-3 pt-2.5 text-sm font-semibold whitespace-nowrap cursor-pointer transition duration-150 ease-in-out ${
-            currentTab === 'history' ? 'text-ink border-b-accent' : 'text-ink-faint border-b-transparent hover:text-ink'
-          }`}
-          onClick={() => setCurrentTab('history')}
-        >
-          History
-        </button>
-        <button
-          className={`bg-transparent border-b-2 px-4 pb-3 pt-2.5 text-sm font-semibold whitespace-nowrap cursor-pointer transition duration-150 ease-in-out ${
-            currentTab === 'reports' ? 'text-ink border-b-accent' : 'text-ink-faint border-b-transparent hover:text-ink'
-          }`}
-          onClick={() => setCurrentTab('reports')}
-        >
-          Reports
-        </button>
-        <button
-          className={`bg-transparent border-b-2 px-4 pb-3 pt-2.5 text-sm font-semibold whitespace-nowrap cursor-pointer transition duration-150 ease-in-out ${
-            currentTab === 'caps' ? 'text-ink border-b-accent' : 'text-ink-faint border-b-transparent hover:text-ink'
-          }`}
-          onClick={() => setCurrentTab('caps')}
-        >
-          Caps
-        </button>
+        {(['dashboard', 'history', 'reports', 'caps'] as const).map((tab) => (
+          <button
+            key={tab}
+            className={`bg-transparent border-b-2 px-4 pb-3 pt-2.5 text-sm font-semibold whitespace-nowrap cursor-pointer transition duration-150 ease-in-out ${
+              currentTab === tab ? 'text-ink border-b-accent' : 'text-ink-faint border-b-transparent hover:text-ink'
+            }`}
+            onClick={() => setCurrentTab(tab)}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
       </nav>
 
       {/* Dynamic Views */}

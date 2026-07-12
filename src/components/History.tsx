@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../store';
 import { deleteExpense } from '../store/ledgerSlice';
 import {
-  CAT_MAP,
-  CATEGORIES,
   fmt,
   dkey,
   endOfMonth,
 } from '../constants';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { EntryRow } from './EntryRow';
+import { EmptyState } from './ui/EmptyState';
 
 export const History: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -119,12 +121,12 @@ export const History: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-4.5">
       {/* Calendar Grid Container */}
-      <div className="bg-bg-elev border border-line rounded-custom p-6 shadow-custom">
+      <Card>
         <div className="flex items-center justify-between mb-3.5">
-          <button 
-            className="w-[38px] h-[38px] rounded-full border border-line bg-bg-elev flex items-center justify-center text-ink-soft hover:border-accent hover:text-accent transition duration-150 ease-in-out cursor-pointer" 
+          <Button 
+            variant="icon"
             id="prevMonth" 
             onClick={handlePrevMonth} 
             aria-label="Previous month"
@@ -132,12 +134,12 @@ export const History: React.FC = () => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
               <path d="M15 18l-6-6 6-6" />
             </svg>
-          </button>
+          </Button>
           <span className="font-display text-base font-semibold text-ink" id="monthLabel">
             {monthLabel}
           </span>
-          <button 
-            className="w-[38px] h-[38px] rounded-full border border-line bg-bg-elev flex items-center justify-center text-ink-soft hover:border-accent hover:text-accent transition duration-150 ease-in-out cursor-pointer" 
+          <Button 
+            variant="icon"
             id="nextMonth" 
             onClick={handleNextMonth} 
             aria-label="Next month"
@@ -145,7 +147,7 @@ export const History: React.FC = () => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
               <path d="M9 18l6-6-6-6" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         <div className="grid grid-cols-7 gap-1.25" id="calGrid">
@@ -158,66 +160,32 @@ export const History: React.FC = () => {
           {/* Day elements */}
           {daysGrid}
         </div>
-      </div>
+      </Card>
 
       {/* Selected Day Entries Panel */}
-      <div className="bg-bg-elev border border-line rounded-custom p-6 shadow-custom mt-4.5">
+      <Card>
         <div className="flex items-baseline justify-between mb-3.5">
-          <span className="font-display text-lg font-semibold text-ink" id="dayPanelTitle">
+          <span className="sec-title" id="dayPanelTitle">
             {dayPanelTitle}
           </span>
           <span className="text-ink-faint text-[13px] font-mono" id="dayPanelTotal">
             {dayEntries.length > 0 ? fmt(dayTotal) : ''}
           </span>
         </div>
-        <div id="dayEntries">
+        <div id="dayEntries" className="flex flex-col">
           {dayEntries.length ? (
-            dayEntries.map((e) => {
-              const c = CAT_MAP[e.category] || CATEGORIES[0];
-              const dateLabel = new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-              });
-              return (
-                <div className="flex items-center gap-3.5 py-3.25 border-b border-line last:border-b-0 group" key={e.id}>
-                  <span className="w-9 h-9 rounded-[10px] flex items-center justify-center text-base shrink-0" style={{ backgroundColor: `${c.color}22` }}>
-                    {c.icon}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-ink truncate">{e.note ? e.note : c.name}</div>
-                    <div className="text-xs text-ink-faint mt-0.5">
-                      {c.name} · {dateLabel}
-                    </div>
-                  </span>
-                  <span className="font-mono text-sm font-semibold text-ink shrink-0">{fmt(e.amount)}</span>
-                  <button
-                    className="opacity-0 group-hover:opacity-100 transition duration-150 ease-in-out w-6.5 h-6.5 rounded-full border-none bg-transparent text-ink-faint flex items-center justify-center hover:text-bad hover:bg-bg-sunken cursor-pointer focus:opacity-100 outline-none"
-                    title="Delete"
-                    onClick={() => handleDelete(e.id)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    >
-                      <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6h12z" />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })
+            dayEntries.map((e) => (
+              <EntryRow 
+                key={e.id}
+                entry={e}
+                onDelete={handleDelete}
+              />
+            ))
           ) : (
-            <div className="text-center p-[40px_20px] text-ink-faint">
-              <div className="text-[32px] mb-2.5">📭</div>
-              <p className="text-[13px] text-ink-soft">No expenses on this date.</p>
-            </div>
+            <EmptyState icon="📭" text="No expenses logged on this date." />
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

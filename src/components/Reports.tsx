@@ -5,13 +5,16 @@ import { DatePicker } from './DatePicker';
 import {
   CATEGORIES,
   CAT_MAP,
-  fmt,
   startOfMonth,
   endOfMonth,
   entriesBetween,
   sum,
   dkey,
 } from '../constants';
+import { Card } from './ui/Card';
+import { StatCard } from './ui/StatCard';
+import { CategoryRow } from './CategoryRow';
+import { EmptyState } from './ui/EmptyState';
 
 export const Reports: React.FC = () => {
   // Fetch entries from Redux
@@ -110,18 +113,8 @@ export const Reports: React.FC = () => {
     return '—';
   }, [filteredEntries, categoryTotals]);
 
-  const renderStatCard = (label: string, valueStr: string, hint: string) => {
-    return (
-      <div className="flex-1 min-w-[150px] bg-bg-elev border border-line rounded-custom p-[18px_20px] shadow-custom" key={label}>
-        <div className="text-[11px] uppercase tracking-[0.07em] text-ink-faint mb-2">{label}</div>
-        <div className="font-display text-[28px] font-semibold tracking-[-0.01em] text-ink">{valueStr}</div>
-        <div className="text-xs text-ink-faint mt-1.5">{hint}</div>
-      </div>
-    );
-  };
-
   return (
-    <div className="bg-bg-elev border border-line rounded-custom p-6 shadow-custom">
+    <Card>
       {/* Segmented Period Switcher */}
       <div className="flex bg-bg-sunken rounded-[10px] p-0.75 gap-0.5 mb-4.5" id="reportSeg">
         {(['monthly', 'quarterly', 'yearly', 'range'] as ReportMode[]).map((mode) => (
@@ -168,53 +161,41 @@ export const Reports: React.FC = () => {
 
       {/* Summaries Row */}
       <div className="flex gap-4.5 mb-4.5 flex-wrap" id="reportSummary">
-        {renderStatCard(
-          rangeLabel,
-          fmt(totalSpend),
-          `${filteredEntries.length} ${filteredEntries.length === 1 ? 'entry' : 'entries'}`
-        )}
-        {renderStatCard(
-          'Daily average',
-          fmt(dailyAverage),
-          `over ${daysInRange} day${daysInRange > 1 ? 's' : ''}`
-        )}
-        {renderStatCard('Top category', topCategoryLabel, '')}
+        <StatCard
+          label={rangeLabel}
+          value={totalSpend}
+          hint={`${filteredEntries.length} ${filteredEntries.length === 1 ? 'entry' : 'entries'}`}
+        />
+        <StatCard
+          label="Daily average"
+          value={dailyAverage}
+          hint={`over ${daysInRange} day${daysInRange > 1 ? 's' : ''}`}
+        />
+        <StatCard 
+          label="Top category" 
+          value={topCategoryLabel} 
+          hint="" 
+        />
       </div>
 
       {/* Category Breakdown Bars */}
       <div className="flex items-baseline justify-between mb-3.5 mt-6">
-        <span className="font-display text-lg font-semibold text-ink">Category breakdown</span>
+        <h3 className="sec-title">Category breakdown</h3>
       </div>
 
-      <div id="reportBars">
+      <div id="reportBars" className="flex flex-col">
         {totalSpend === 0 ? (
-          <div className="text-center p-[40px_20px] text-ink-faint">
-            <div className="text-[32px] mb-2.5">📊</div>
-            <p className="text-[13px] text-ink-soft">No expenses in this range.</p>
-          </div>
+          <EmptyState icon="📊" text="No expenses logged in this range." />
         ) : (
           <>
-            {CATEGORIES.map((c) => {
-              const amt = categoryTotals[c.id] || 0;
-              const fillPct = (amt / maxCategorySpend) * 100;
-              return (
-                <div className="flex items-center gap-3 py-2.5" key={c.id}>
-                  <span className="w-[110px] text-[13px] text-ink-soft shrink-0">
-                    {c.icon} {c.name}
-                  </span>
-                  <span className="flex-1 h-2.5 bg-bg-sunken rounded-full overflow-hidden">
-                    <span
-                      className="h-full rounded-full block"
-                      style={{
-                        width: `${fillPct}%`,
-                        backgroundColor: c.color,
-                      }}
-                    />
-                  </span>
-                  <span className="w-[78px] text-right font-mono text-xs text-ink-soft shrink-0">{fmt(amt)}</span>
-                </div>
-              );
-            })}
+            {CATEGORIES.map((c) => (
+              <CategoryRow
+                key={c.id}
+                category={c}
+                amount={categoryTotals[c.id] || 0}
+                maxAmount={maxCategorySpend}
+              />
+            ))}
 
             {/* Percentage Legend */}
             <div className="flex flex-wrap gap-3.5 mt-6 border-t border-line pt-4">
@@ -232,7 +213,7 @@ export const Reports: React.FC = () => {
           </>
         )}
       </div>
-    </div>
+    </Card>
   );
 };
 

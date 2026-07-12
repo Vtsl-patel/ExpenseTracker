@@ -3,7 +3,6 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { deleteExpense } from '../store/ledgerSlice';
 import {
   CATEGORIES,
-  CAT_MAP,
   fmt,
   dkey,
   startOfWeek,
@@ -12,6 +11,11 @@ import {
   entriesBetween,
   sum,
 } from '../constants';
+import { StatCard } from './ui/StatCard';
+import { CategoryRow } from './CategoryRow';
+import { EntryRow } from './EntryRow';
+import { EmptyState } from './ui/EmptyState';
+import { Card } from './ui/Card';
 
 interface DashboardProps {
   onNavigateToHistory: () => void;
@@ -68,156 +72,76 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToHistory }) => 
     dispatch(deleteExpense(id));
   };
 
-  // Helper to render Stat Cards
-  const renderStatCard = (label: string, value: number, cap: number, hint: string) => {
-    const isOver = cap > 0 && value > cap;
-    let barHtml = null;
-
-    if (cap > 0) {
-      const pct = Math.min((value / cap) * 100, 100);
-      barHtml = (
-        <div className="h-1.5 rounded-full bg-bg-sunken overflow-hidden mt-2.5">
-          <div
-            className={`h-full rounded-full transition-all duration-400 ease-in-out ${isOver ? 'bg-bad' : 'bg-accent'}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex-1 min-w-[150px] bg-bg-elev border border-line rounded-custom p-[18px_20px] shadow-custom" key={label}>
-        <div className="text-[11px] uppercase tracking-[0.07em] text-ink-faint mb-2">{label}</div>
-        <div className={`font-display text-[28px] font-semibold tracking-[-0.01em] ${isOver ? 'text-bad' : 'text-ink'}`}>{fmt(value)}</div>
-        <div className="text-xs text-ink-faint mt-1.5">{hint}</div>
-        {barHtml}
-      </div>
-    );
-  };
-
   return (
-    <div>
+    <div className="flex flex-col gap-4.5">
       {/* Summary Stat Cards */}
-      <div className="flex gap-4.5 mb-4.5 flex-wrap" id="summaryRow">
-        {renderStatCard(
-          'Today',
-          todayTotal,
-          0,
-          `${monthEntries.length} ${monthEntries.length === 1 ? 'entry' : 'entries'} this month`
-        )}
-        {renderStatCard(
-          'This week',
-          weekTotal,
-          weeklyCap,
-          weeklyCap > 0
-            ? `${fmt(Math.max(weeklyCap - weekTotal, 0))} left`
-            : 'no weekly cap set'
-        )}
-        {renderStatCard(
-          'This month',
-          monthTotal,
-          monthlyCap,
-          monthlyCap > 0
-            ? `${fmt(Math.max(monthlyCap - monthTotal, 0))} left`
-            : 'no monthly cap set'
-        )}
+      <div className="flex gap-4.5 mb-1 flex-wrap" id="summaryRow">
+        <StatCard
+          label="Today"
+          value={todayTotal}
+          hint={`${monthEntries.length} ${monthEntries.length === 1 ? 'entry' : 'entries'} this month`}
+        />
+        <StatCard
+          label="This week"
+          value={weekTotal}
+          cap={weeklyCap}
+          hint={weeklyCap > 0 ? `${fmt(Math.max(weeklyCap - weekTotal, 0))} left` : 'no weekly cap set'}
+        />
+        <StatCard
+          label="This month"
+          value={monthTotal}
+          cap={monthlyCap}
+          hint={monthlyCap > 0 ? `${fmt(Math.max(monthlyCap - monthTotal, 0))} left` : 'no monthly cap set'}
+        />
       </div>
 
       {/* Categories Breakdown */}
-      <div className="bg-bg-elev border border-line rounded-custom p-6 shadow-custom mb-[18px]">
+      <Card>
         <div className="flex items-baseline justify-between mb-3.5">
-          <span className="font-display text-lg font-semibold text-ink">By category — this month</span>
+          <h3 className="sec-title">By category — this month</h3>
         </div>
-        <div id="catBreakdown">
+        <div id="catBreakdown" className="flex flex-col">
           {monthTotal === 0 ? (
-            <div className="text-center p-[40px_20px] text-ink-faint">
-              <div className="text-[32px] mb-2.5">🌱</div>
-              <p className="text-[13px] text-ink-soft">No expenses logged this month yet.</p>
-            </div>
+            <EmptyState icon="🌱" text="No expenses logged this month yet." />
           ) : (
-            CATEGORIES.map((c) => {
-              const amt = byCat[c.id] || 0;
-              const fillPct = (amt / maxCat) * 100;
-              return (
-                <div className="flex items-center gap-3.5 py-3.5 border-b border-line last:border-b-0" key={c.id}>
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                  <span className="text-sm font-medium text-ink flex-1">
-                    {c.icon} {c.name}
-                  </span>
-                  <span className="basis-[120px] h-1.25 rounded-[3px] bg-bg-sunken overflow-hidden max-[560px]:hidden">
-                    <span
-                      className="h-full rounded-[3px] block"
-                      style={{
-                        width: `${fillPct}%`,
-                        backgroundColor: c.color,
-                      }}
-                    />
-                  </span>
-                  <span className="font-mono text-sm text-ink-soft">{fmt(amt)}</span>
-                </div>
-              );
-            })
+            CATEGORIES.map((c) => (
+              <CategoryRow
+                key={c.id}
+                category={c}
+                amount={byCat[c.id] || 0}
+                maxAmount={maxCat}
+              />
+            ))
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Recent Entries */}
-      <div className="bg-bg-elev border border-line rounded-custom p-6 shadow-custom">
+      <Card>
         <div className="flex items-baseline justify-between mb-3.5">
-          <span className="font-display text-lg font-semibold text-ink">Recent entries</span>
-          <button className="text-[13px] text-accent bg-transparent border-0 font-medium cursor-pointer hover:underline" id="viewAllBtn" onClick={onNavigateToHistory}>
+          <h3 className="sec-title">Recent entries</h3>
+          <button 
+            className="text-[13px] text-accent bg-transparent border-0 font-medium cursor-pointer hover:underline" 
+            id="viewAllBtn" 
+            onClick={onNavigateToHistory}
+          >
             View history →
           </button>
         </div>
-        <div id="recentEntries">
+        <div id="recentEntries" className="flex flex-col">
           {recent.length ? (
-            recent.map((e) => {
-              const c = CAT_MAP[e.category] || CATEGORIES[0];
-              const dateLabel = new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-              });
-              return (
-                <div className="flex items-center gap-3.5 py-3.25 border-b border-line last:border-b-0 group" key={e.id}>
-                  <span className="w-9 h-9 rounded-[10px] flex items-center justify-center text-base shrink-0" style={{ backgroundColor: `${c.color}22` }}>
-                    {c.icon}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-ink truncate">{e.note ? e.note : c.name}</div>
-                    <div className="text-xs text-ink-faint mt-0.5">
-                      {c.name} · {dateLabel}
-                    </div>
-                  </span>
-                  <span className="font-mono text-sm font-semibold text-ink shrink-0">{fmt(e.amount)}</span>
-                  <button
-                    className="opacity-0 group-hover:opacity-100 transition duration-150 ease-in-out w-6.5 h-6.5 rounded-full border-none bg-transparent text-ink-faint flex items-center justify-center hover:text-bad hover:bg-bg-sunken cursor-pointer focus:opacity-100 outline-none"
-                    data-id={e.id}
-                    title="Delete"
-                    onClick={() => handleDelete(e.id)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                    >
-                      <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6h12z" />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })
+            recent.map((e) => (
+              <EntryRow 
+                key={e.id}
+                entry={e}
+                onDelete={handleDelete}
+              />
+            ))
           ) : (
-            <div className="text-center p-[40px_20px] text-ink-faint">
-              <div className="text-[32px] mb-2.5">🧾</div>
-              <p className="text-[13px] text-ink-soft">Nothing yet — tap + to add your first expense.</p>
-            </div>
+            <EmptyState icon="🧾" text="Nothing yet — tap + to add your first expense." />
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

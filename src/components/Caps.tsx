@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../store';
 import { updateCap } from '../store/ledgerSlice';
 import { CATEGORIES } from '../constants';
+import { Card } from './ui/Card';
+import { Input } from './ui/Input';
 
 export const CapsConfig: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -20,9 +22,9 @@ export const CapsConfig: React.FC = () => {
     <div className="flex flex-col gap-5">
       
       {/* Budget Period Filter Card */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-bg-elev border border-line rounded-custom p-5 shadow-custom">
+      <Card className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5">
         <div>
-          <h3 className="font-display text-lg font-semibold text-ink">Budget Limits</h3>
+          <h3 className="sec-title">Budget Limits</h3>
           <p className="text-ink-faint text-xs mt-1">Configure spending limits by category to manage your goals</p>
         </div>
         
@@ -43,20 +45,19 @@ export const CapsConfig: React.FC = () => {
             </button>
           ))}
         </div>
-      </div>
+      </Card>
 
       {/* Grid of Budget Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CATEGORIES.map((c) => {
           const cap = caps[c.id] || { weekly: 0, monthly: 0 };
           const currentValue = activePeriod === 'weekly' ? cap.weekly : cap.monthly;
-          // Set display value as empty string if it's 0 to let user type easily
           const displayValue = currentValue === 0 ? '' : currentValue.toString();
 
           return (
-            <div 
+            <Card 
               key={c.id} 
-              className="bg-bg-elev border border-line rounded-custom p-5 shadow-custom flex items-center justify-between gap-4 transition hover:border-ink-faint duration-200"
+              className="flex items-center justify-between gap-4 p-5 transition hover:border-ink-faint duration-200"
             >
               {/* Category Identity Info */}
               <div className="flex items-center gap-3">
@@ -75,20 +76,16 @@ export const CapsConfig: React.FC = () => {
               </div>
 
               {/* Single Input Field for Current Period */}
-              <div className="w-[120px] shrink-0">
-                <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-semibold text-ink-faint">₹</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={displayValue}
-                    onChange={(e) => handleCapChange(c.id, e.target.value)}
-                    className="w-full pl-6 pr-3 py-2 border border-line rounded-[10px] bg-bg-sunken text-ink text-sm font-semibold outline-none focus:ring-2 focus:ring-accent/15 focus:border-accent focus:bg-bg-elev transition-all duration-150 ease-in-out text-right shadow-sm"
-                  />
-                </div>
-              </div>
-            </div>
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="0.00"
+                value={displayValue}
+                onChange={(e) => handleCapChange(c.id, e.target.value)}
+                currency
+                className="w-[120px] shrink-0"
+              />
+            </Card>
           );
         })}
       </div>
