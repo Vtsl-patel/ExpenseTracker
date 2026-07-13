@@ -7,6 +7,8 @@ A premium, local-first expense tracker built with React, TypeScript, Redux, and 
 ## 🌟 Features for Users
 
 - **Local-First & Offline Ready**: Expenses are recorded instantly and stored locally. Works fully offline, syncing automatically when your internet connection is restored.
+- **Real-Time Cross-Device Sync**: Automatically fetches and merges remote changes whenever the browser window or tab gains focus.
+- **Reliable Conflict Resolution**: Employs deletion tombstones to ensure deleted transactions stay deleted and additions merge non-destructively across multiple devices.
 - **Category Budgets (Caps)**: Set weekly or monthly spending limits for categories (Food, Shopping, Travel, etc.) with real-time visual progress tracks.
 - **Flexible Reports**: Group spending statistics by month, quarter, year, or custom date ranges with interactive percentage breakdowns.
 - **Frictionless Google Sync**: Backs up transaction history and budget configurations securely to your Google Drive account using the secure, scoped `drive.file` permission.
@@ -18,8 +20,12 @@ A premium, local-first expense tracker built with React, TypeScript, Redux, and 
 
 - **Frontend**: React 19 + TypeScript + Vite (Rollup)
 - **State Management**: Redux Toolkit (RTK) using modular slices.
-- **Side-Effects (Async/Sync)**: Decoupled Google API requests managed via Redux Async Thunks (`createAsyncThunk`).
-- **Clean Architecture**: Presentational UI components are completely decoupled from state management via custom React hooks (`useAuth`, `useLedger`).
+- **Clean Architecture**: Presentational UI components are 100% decoupled from state management via custom hooks. **`App.tsx`** is a pure layout view with zero data-fetching, timer loops, or state updates.
+- **Hooks & Lifecycles**:
+  - `useAuth`: Manages the Google client instance, tab focus sync listeners, and token refresh timers.
+  - `useLedger`: Manages mutations, debounced upload side-effects, and online reconnection hooks.
+- **Session Security**: Active session metadata and access tokens are isolated in `sessionStorage` (automatically cleared when the tab is closed).
+- **Silent Refresh Loop**: Background interval silently refreshes the OAuth access token every 50 minutes to maintain persistent authorization without user-facing popups.
 - **Styling**: Tailwind CSS v4 utilizing `@theme` configuration directives inside CSS.
 - **Security**: Disables production source maps explicitly, ensuring output bundles are minified and obfuscated.
 
